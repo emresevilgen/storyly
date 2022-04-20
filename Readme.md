@@ -1,0 +1,3 @@
+- event request ve döküman model
+- repo implementation
+- cache
