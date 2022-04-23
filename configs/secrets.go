@@ -3,7 +3,9 @@ package configs
 import "github.com/spf13/viper"
 
 type secrets struct {
-	v *viper.Viper
+	v                  *viper.Viper
+	PostgreSqlUser     string `required:"true" split_words:"true" json:"postgreSqlUser"`
+	PostgreSqlPassword string `required:"true" split_words:"true" json:"postgreSqlPassword"`
 }
 
 func (s *secrets) readWithViper(shouldPanic bool) error {

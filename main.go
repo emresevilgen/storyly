@@ -1,23 +1,28 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
+	_ "github.com/lib/pq"
+	inmemcache "github.com/patrickmn/go-cache"
 	"github.com/swaggo/echo-swagger"
 	"github.com/tylerb/graceful"
 	"log"
 	"net/http"
 	"storyly/configs"
 	_ "storyly/docs"
-	event_controller "storyly/pkg/controller/event-controller"
+	"storyly/pkg/controller/event-controller"
 	"storyly/pkg/controller/story-controller"
-	auth_middleware "storyly/pkg/middleware/auth-middleware"
+	"storyly/pkg/middleware/auth-middleware"
 	"storyly/pkg/middleware/tracing-middleware"
-	postgresql_repository "storyly/pkg/repository/postgresql-repository"
-	auth_service "storyly/pkg/service/auth-service"
-	event_service "storyly/pkg/service/event-service"
-	story_service "storyly/pkg/service/story-service"
+	"storyly/pkg/repository/postgresql-repository"
+	"storyly/pkg/service/auth-service"
+	"storyly/pkg/service/event-service"
+	"storyly/pkg/service/inmemory-cache-service"
+	"storyly/pkg/service/story-service"
 	customValidator "storyly/pkg/validator"
 	"time"
 )
@@ -34,20 +39,33 @@ func init() {
 // @description This is for storyly assignment.
 func main() {
 	// Init db cluster
+	connStr := "postgresql://<" + configs.Secrets.PostgreSqlUser + ">:<" + configs.Secrets.PostgreSqlPassword + ">@<" + configs.AppConfig.PostgreSql.Host + ":" + configs.AppConfig.PostgreSql.Port + ">/todos?sslmode=disable"
 
-	//if err != nil {
-	//	fmt.Println("Db connection error,err:", err.Error())
-	//	return
-	//}
+	dbCluster, err := sql.Open("postgres", connStr)
+	if err != nil {
+		fmt.Println("Db connection error,err:", err.Error())
+		return
+	}
+
+	defer func() {
+		_ = dbCluster.Close()
+	}()
+
+	// Init in memory caches
+	inMemoryCacheForAuth := inmemcache.New(9999*time.Hour, 9999*time.Hour)
+	inMemoryCacheForStories := inmemcache.New(9999*time.Hour, 9999*time.Hour)
 
 	// Init repositories
-	storyRepository := postgresql_repository.NewStoryRepository()
-	tokenRepository := postgresql_repository.NewTokenRepository()
+	tokenRepository := postgresql_repository.NewTokenRepository(dbCluster)
+	storyRepository := postgresql_repository.NewStoryRepository(dbCluster)
+	eventRepository := postgresql_repository.NewEventRepository(dbCluster)
 
 	// Init services
-	authService := auth_service.NewAuthService(tokenRepository)
-	storyService := story_service.NewStoryService(storyRepository)
-	eventService := event_service.NewEventService()
+	cacheServiceForAuth := inmemory_cache_service.New(inMemoryCacheForAuth)
+	cacheServiceForStories := inmemory_cache_service.New(inMemoryCacheForStories)
+	authService := auth_service.NewAuthService(tokenRepository, cacheServiceForAuth)
+	storyService := story_service.NewStoryService(storyRepository, cacheServiceForStories)
+	eventService := event_service.NewEventService(eventRepository)
 
 	// Init controllers
 	storyController := story_controller.NewStoryController(storyService)
@@ -80,10 +98,9 @@ func main() {
 
 	log.Println("Server running at", appPort)
 
-	err := graceful.ListenAndServe(srv, time.Duration(configs.AppConfig.GracefulShutdownTimeout)*time.Second)
+	err = graceful.ListenAndServe(srv, time.Duration(configs.AppConfig.GracefulShutdownTimeout)*time.Second)
 	if err != nil {
 		log.Println("Error: ", err)
-
 		return
 	}
 }

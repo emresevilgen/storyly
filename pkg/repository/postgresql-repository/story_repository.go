@@ -2,6 +2,7 @@ package postgresql_repository
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	log "storyly/pkg/log"
 	"storyly/pkg/log/log_factory"
@@ -14,11 +15,13 @@ type StoryRepository interface {
 
 type storyRepository struct {
 	logFactory log_factory.Factory
+	dbCluster  *sql.DB
 }
 
-func NewStoryRepository() *storyRepository {
+func NewStoryRepository(dbCluster *sql.DB) *storyRepository {
 	return &storyRepository{
 		logFactory: log_factory.NewFactory(log.NewLoggerByType(reflect.TypeOf(storyRepository{}), nil)),
+		dbCluster:  dbCluster,
 	}
 }
 
