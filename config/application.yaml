@@ -1,1 +1,4 @@
 gracefulShutdownTimeout: 5
+postgreSql:
+  host: 0.0.0.0
+  port: 5432

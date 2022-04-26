@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -10,6 +9,8 @@ import (
 	inmemcache "github.com/patrickmn/go-cache"
 	"github.com/swaggo/echo-swagger"
 	"github.com/tylerb/graceful"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"storyly/configs"
@@ -39,16 +40,23 @@ func init() {
 // @description This is for storyly assignment.
 func main() {
 	// Init db cluster
-	connStr := "postgresql://<" + configs.Secrets.PostgreSqlUser + ">:<" + configs.Secrets.PostgreSqlPassword + ">@<" + configs.AppConfig.PostgreSql.Host + ":" + configs.AppConfig.PostgreSql.Port + ">/todos?sslmode=disable"
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=storyly sslmode=disable",
+		configs.AppConfig.PostgreSql.Host, configs.AppConfig.PostgreSql.Port, configs.Secrets.PostgreSqlUser, configs.Secrets.PostgreSqlPassword)
 
-	dbCluster, err := sql.Open("postgres", connStr)
+	dbCluster, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		fmt.Println("Db connection error,err:", err.Error())
 		return
 	}
 
+	db, err := dbCluster.DB()
+	if err != nil {
+		fmt.Println("Db error,err:", err.Error())
+		return
+	}
+
 	defer func() {
-		_ = dbCluster.Close()
+		_ = db.Close()
 	}()
 
 	// Init in memory caches
@@ -65,7 +73,7 @@ func main() {
 	cacheServiceForStories := inmemory_cache_service.New(inMemoryCacheForStories)
 	authService := auth_service.NewAuthService(tokenRepository, cacheServiceForAuth)
 	storyService := story_service.NewStoryService(storyRepository, cacheServiceForStories)
-	eventService := event_service.NewEventService(eventRepository)
+	eventService := event_service.NewEventService(eventRepository, storyService)
 
 	// Init controllers
 	storyController := story_controller.NewStoryController(storyService)
@@ -90,6 +98,7 @@ func main() {
 	eventGroup.Use(tracingMiddleware.GetTracingInformationFromEcho)
 	{
 		eventGroup.POST("/:token", eventController.PostEvent, authMiddleware.Authenticate)
+		eventGroup.GET("/metrics/:token", eventController.GetEventMetrics, authMiddleware.Authenticate)
 	}
 
 	e.GET("/swagger*", echoSwagger.WrapHandler)

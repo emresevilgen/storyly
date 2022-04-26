@@ -2,9 +2,11 @@ package story_service
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 	log "storyly/pkg/log"
 	"storyly/pkg/log/log_factory"
+	"storyly/pkg/model/domain"
 	"storyly/pkg/model/responses/story-responses"
 	"storyly/pkg/repository/postgresql-repository"
 	inmemory_cache_service "storyly/pkg/service/inmemory-cache-service"
@@ -12,10 +14,11 @@ import (
 	"time"
 )
 
-const storiesCacheExpDuration = time.Duration(5) * time.Minute
+const storiesCacheExpDuration = time.Duration(1) * time.Minute
 
 type StoryService interface {
 	GetStories(ctx context.Context, appId int64) (story_responses.StoryListResponse, error)
+	ValidateStoryAndApp(ctx context.Context, appId int64, storyId int64) (bool, error)
 }
 
 type storyService struct {
@@ -46,23 +49,38 @@ func (s *storyService) GetStories(ctx context.Context, appId int64) (story_respo
 	storiesResp := make([]story_responses.StoryResponse, 0)
 
 	for _, story := range stories {
+		var metadata domain.Metadata
+		err = json.Unmarshal([]byte(story.Metadata), &metadata)
+		if err != nil {
+			return story_responses.StoryListResponse{}, err
+		}
+
 		storiesResp = append(storiesResp, story_responses.StoryResponse{
-			Id:       story.Id,
-			Metadata: story.Metadata.Image,
+			Id:       story.StoryId,
+			Metadata: metadata.Image,
 		})
 	}
 
 	resp := prepareStoryListResponse(appId, storiesResp)
 
-	s.cacheService.Set(appIdStr, resp, storiesCacheExpDuration)
+	s.cacheService.Set(appIdStr, storiesResp, storiesCacheExpDuration)
 
 	return resp, nil
+}
+
+func (s *storyService) ValidateStoryAndApp(ctx context.Context, appId int64, storyId int64) (bool, error) {
+	story, err := s.storyRepository.GetStory(ctx, storyId)
+	if err != nil {
+		return false, err
+	}
+
+	return appId == story.AppId, nil
 }
 
 func prepareStoryListResponse(appId int64, storiesResp []story_responses.StoryResponse) story_responses.StoryListResponse {
 	return story_responses.StoryListResponse{
 		AppId:     appId,
-		Timestamp: time.Now().UnixMilli(),
+		Timestamp: time.Now().Unix(),
 		Metadata:  storiesResp,
 	}
 }

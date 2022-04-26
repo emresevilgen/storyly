@@ -35,7 +35,10 @@ func (s *authService) GetAppId(ctx context.Context, token string) (int64, error)
 		return cacheRes.(int64), nil
 	}
 
-	appId := int64(12)
+	appId, err := s.tokenRepository.GetAppId(ctx, token)
+	if err != nil {
+		return 0, err
+	}
 
 	s.cacheService.Set(token, appId, tokenCacheExpDuration)
 

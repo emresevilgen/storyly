@@ -8,6 +8,7 @@ import (
 	log "storyly/pkg/log"
 	"storyly/pkg/log/log_factory"
 	event_requests "storyly/pkg/model/requests/event-requests"
+	event_responses "storyly/pkg/model/responses/event-responses"
 	event_service "storyly/pkg/service/event-service"
 	"storyly/pkg/tracing"
 )
@@ -62,4 +63,42 @@ func (c EventController) PostEvent(ctx echo.Context) error {
 		return ctx.JSON(errorResponse.StatusCode, errorResponse)
 	}
 	return ctx.NoContent(http.StatusOK)
+}
+
+// GetEventMetrics godoc
+// @Summary Get event metrics
+// @Description Get event metrics
+// @ID get-event-metrics
+// @Accept json
+// @Produce json
+// @Param token path string true "Token"
+// @Param date path string true "Date"
+// @Param correlationId header string true "Correlation Id"
+// @Param agentName header string true "Agent Name"
+// @Param executorUser header string true "Executor User"
+// @Success 200
+// @Router /event/metrics/{token} [get]
+func (c EventController) GetEventMetrics(ctx echo.Context) error {
+	var (
+		response event_responses.EventMetricsResponse
+		err      error
+	)
+
+	stdContext := tracing.CreateContextFromEcho(ctx)
+	appId := ctx.Get("AppId").(int64)
+	date := ctx.QueryParam("date")
+
+	if date == "" {
+		err = errors.CreateError(http.StatusBadRequest, "date parameter is required")
+		c.logFactory.For(stdContext).Error("Get event metrics is failed for appId: %d, date: %s, with error: %+v", appId, date, err)
+		return ctx.JSON(http.StatusBadRequest, err)
+	}
+
+	response, err = c.eventService.GetEventMetrics(stdContext, appId, date)
+	if err != nil {
+		errorResponse := err.(errors.ErrorResponse)
+		c.logFactory.For(stdContext).Error("Get event metrics is failed for appId: %d, date: %s, with error: %+v", appId, date, errorResponse)
+		return ctx.JSON(errorResponse.StatusCode, errorResponse)
+	}
+	return ctx.JSON(http.StatusOK, response)
 }

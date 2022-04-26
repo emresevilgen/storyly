@@ -1,7 +1,6 @@
 FROM golang:1.17.5-alpine3.15 AS builder
 
 ENV GO111MODULE=on
-ENV GOPRIVATE=*.trendyol.com
 
 WORKDIR /build
 

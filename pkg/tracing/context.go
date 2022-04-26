@@ -12,14 +12,6 @@ type tracingContext struct {
 	ctx           context.Context
 }
 
-func NewContext() *tracingContext {
-	return &tracingContext{}
-}
-
-func NewContextFrom(ctx context.Context) *tracingContext {
-	return &tracingContext{ctx: ctx}
-}
-
 func (c *tracingContext) SetDefaults() *tracingContext {
 	c.correlationId = uuid.New().String()
 	return c

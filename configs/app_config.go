@@ -12,7 +12,7 @@ type appConfig struct {
 
 type PostgreSqlConfigs struct {
 	Host string `required:"true" split_words:"true" yaml:"host"`
-	Port string `required:"true" split_words:"true" yaml:"port"`
+	Port int    `required:"true" split_words:"true" yaml:"port"`
 }
 
 func (a *appConfig) readWithViper(shouldPanic bool) error {
