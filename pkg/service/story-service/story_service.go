@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const storiesCacheExpDuration = time.Duration(1) * time.Minute
+const storiesCacheExpDuration = time.Duration(1) * time.Second
 
 type StoryService interface {
 	GetStories(ctx context.Context, appId int64) (story_responses.StoryListResponse, error)

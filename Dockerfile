@@ -10,6 +10,8 @@ RUN go get -u github.com/swaggo/swag/cmd/swag
 
 COPY go.mod go.sum ./
 
+COPY config ./config
+
 RUN go mod download
 
 COPY . .
@@ -25,5 +27,6 @@ WORKDIR /deployment
 RUN apk add --update --no-cache ca-certificates && rm -rf /var/cache/apk/*
 
 COPY --from=builder /build/app .
+COPY --from=builder /build/config ./config
 
 ENTRYPOINT ./app

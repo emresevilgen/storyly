@@ -34,7 +34,7 @@ func NewStoryController(storyService story_service.StoryService) *StoryControlle
 // @Param correlationId header string true "Correlation Id"
 // @Param agentName header string true "Agent Name"
 // @Param executorUser header string true "Executor User"
-// @Success 200 {object} story-responses.StoryListResponse
+// @Success 200 {object} story_responses.StoryListResponse
 // @Router /stories/{token} [get]
 func (c StoryController) GetStories(ctx echo.Context) error {
 	var (
