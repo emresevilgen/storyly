@@ -16,6 +16,7 @@ Pull the docker images below and run
 - $ docker run --name storyly -p 8086:8086 storyly
 
 Swagger: http://localhost:8086/swagger/index.html
+
 Example Curl:
 
 curl -X 'GET' \
